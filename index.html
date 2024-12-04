@@ -58,8 +58,8 @@
                     this.imageLoaded = true;
                 }
                 this.imageLoaded = false;
-                this.width = 50;
-                this.height = 100;
+                this.width = 200;
+                this.height = 200;
                 this.scored = false; // Para evitar sumar múltiples puntos por el mismo cactus
             }
 
@@ -94,8 +94,8 @@
                 this.jump = undefined;
                 this.gravity = 0.5;
                 this.jumpPower = 15; // Incrementado para saltar más alto
-                this.width = 100;
-                this.height = 100;
+                this.width = 200;
+                this.height = 200;
             }
 
             update(deltaTime) {
@@ -116,7 +116,19 @@
                 }
             }
 
+            // Nueva función para calcular la distancia horizontal al cactus
+            horizontalDistance(cactus) {
+                return Math.abs(this.x + this.width - cactus.x);
+            }
+
             checkCollision(cactus) {
+                const distance = this.horizontalDistance(cactus);
+
+                // Permitir superar si está saltando y la distancia está entre 50 y 100 píxeles
+                if (distance <= 100 && distance >= 50 && this.jump) {
+                    return false; // No hay colisión
+                }
+
                 return (
                     this.x < cactus.x + cactus.width &&
                     this.x + this.width > cactus.x &&
@@ -129,11 +141,10 @@
                 return (
                     this.x + this.width > cactus.x &&
                     this.x < cactus.x + cactus.width &&
-                    this.y + this.height <= cactus.y
+                    this.y + this.height <= cactus.y + 10 // Margen para evitar errores
                 );
             }
         }
-
         const enviroment = new Enviroment(0);
         const rex = new Rex(100, window.innerHeight - 300);
         const cacti = [];
@@ -143,13 +154,13 @@
         let cactusSpawnInterval = 2000;
         let lastCactusSpawn = 0;
 
+        const scoreElement = document.querySelector(".score");
         function updateScore() {
-            const scoreElement = document.querySelector(".score");
             scoreElement.textContent = `Score: ${score}`;
         }
 
         function spawnCactus() {
-            const cactus = new Cactus(window.innerWidth, window.innerHeight - 300);
+            const cactus = new Cactus(window.innerWidth, window.innerHeight - 250);
             cacti.push(cactus);
         }
 

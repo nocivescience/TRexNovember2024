@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+
+    .container {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+    }
+</style>
+
+<body>
+    <div class="container"></div>
+    <script>
+        class Enviroment {
+            constructor(x) {
+                this.x = x;
+                this.image = new Image();
+                this.image.src = "./enviroment.png";
+                this.image.onload = () => {
+                    console.log("Image loaded");
+                    this.imageLoaded = true;
+                }
+                this.imageLoaded = false;
+            }
+        }
+
+        class Cactus {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.image = new Image();
+                this.image.src = "./cactus.png";
+                this.image.onload = () => {
+                    this.imageLoaded = true;
+                }
+                this.imageLoaded = false;
+            }
+        }
+
+        class Rex {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.image1 = new Image();
+                this.image1.src = "./trex1.png";
+                this.image2 = new Image();
+                this.image2.src = "./trex2.png";
+                this.image1Loaded = false;
+                this.image2Loaded = false;
+                this.image1.onload = () => {
+                    this.image1Loaded = true;
+                };
+                this.image2.onload = () => {
+                    this.image2Loaded = true;
+                };
+                this.currentImage = this.image1;
+                this.lastSwitchTime = 0; // Tiempo para controlar la alternancia de imágenes
+                this.switchInterval = 100; // Intervalo en milisegundos
+                this.jump = undefined;
+                this.right = undefined;
+                this.left = undefined;
+                this.gravity = 0.5;
+                this.jumpPower = 10;
+            }
+            update(deltaTime) {
+                // Alternancia de imágenes basada en el tiempo
+                this.lastSwitchTime += deltaTime;
+                if (this.lastSwitchTime >= this.switchInterval) {
+                    this.currentImage = this.currentImage === this.image1 ? this.image2 : this.image1;
+                    this.lastSwitchTime = 0;
+                }
+
+                // Movimiento vertical (salto)
+                if (this.jump) {
+                    this.y -= this.jumpPower;
+                    this.jumpPower -= this.gravity;
+                    if (this.y >= window.innerHeight - 300) {
+                        this.jump = undefined;
+                        this.y = window.innerHeight - 300;
+                        this.jumpPower = 10;
+                    }
+                }
+
+                // Movimiento horizontal
+                if (this.right) {
+                    this.x -= 15;
+                }
+                if (this.left) {
+                    this.x += 15;
+                }
+            }
+        }
+
+        // Animación usando requestAnimationFrame
+        const enviroment = new Enviroment(0);
+        const rex = new Rex(100, window.innerHeight - 300);
+        let lastFrameTime = 0;
+
+        function gameLoop(timestamp) {
+            const deltaTime = timestamp - lastFrameTime; // Tiempo transcurrido entre cuadros
+            lastFrameTime = timestamp;
+
+            if (!enviroment.imageLoaded || !rex.image1Loaded || !rex.image2Loaded) {
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            // Actualizar lógica
+            enviroment.x -= 1;
+            if (enviroment.x < -window.innerWidth) {
+                enviroment.x = 0;
+            }
+            rex.update(deltaTime);
+
+            // Dibujar en el canvas
+            const canvas = document.createElement("canvas");
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(enviroment.image, enviroment.x, 0, canvas.width, canvas.height);
+            ctx.drawImage(enviroment.image, enviroment.x + canvas.width, 0, canvas.width, canvas.height);
+            ctx.drawImage(rex.currentImage, rex.x, rex.y, 100, 100);
+
+            const container = document.querySelector(".container");
+            container.innerHTML = "";
+            container.appendChild(canvas);
+
+            // Llamar al siguiente cuadro de animación
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key == " ") {
+                rex.jump = true;
+            }
+            if (e.key == "a") {
+                rex.right = true;
+            }
+            if (e.key == "d") {
+                rex.left = true;
+            }
+        });
+        document.addEventListener("keyup", (e) => {
+            if (e.key == "a") {
+                rex.right = false;
+            }
+            if (e.key == "d") {
+                rex.left = false;
+            }
+        });
+
+        // Iniciar el ciclo de animación
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+
+</html>

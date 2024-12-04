@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Rex Game</title>
 </head>
 <style>
     body {
@@ -17,11 +17,24 @@
         width: 100vw;
         height: 100vh;
         overflow: hidden;
+        position: relative;
+    }
+
+    .score {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        color: white;
+        font-size: 24px;
+        font-family: Arial, sans-serif;
+        z-index: 10;
     }
 </style>
 
 <body>
-    <div class="container"></div>
+    <div class="container">
+        <div class="score">Score: 0</div>
+    </div>
     <script>
         class Enviroment {
             constructor(x) {
@@ -29,7 +42,6 @@
                 this.image = new Image();
                 this.image.src = "./enviroment.png";
                 this.image.onload = () => {
-                    console.log("Image loaded");
                     this.imageLoaded = true;
                 }
                 this.imageLoaded = false;
@@ -46,6 +58,17 @@
                     this.imageLoaded = true;
                 }
                 this.imageLoaded = false;
+                this.width = 50;
+                this.height = 100;
+                this.scored = false; // Para evitar sumar múltiples puntos por el mismo cactus
+            }
+
+            update() {
+                this.x -= 5; // Movimiento constante hacia la izquierda
+            }
+
+            isOffScreen() {
+                return this.x + this.width < 0; // Si se sale de la pantalla
             }
         }
 
@@ -66,50 +89,72 @@
                     this.image2Loaded = true;
                 };
                 this.currentImage = this.image1;
-                this.lastSwitchTime = 0; // Tiempo para controlar la alternancia de imágenes
-                this.switchInterval = 100; // Intervalo en milisegundos
+                this.lastSwitchTime = 0;
+                this.switchInterval = 100;
                 this.jump = undefined;
-                this.right = undefined;
-                this.left = undefined;
                 this.gravity = 0.5;
-                this.jumpPower = 10;
+                this.jumpPower = 15; // Incrementado para saltar más alto
+                this.width = 100;
+                this.height = 100;
             }
+
             update(deltaTime) {
-                // Alternancia de imágenes basada en el tiempo
                 this.lastSwitchTime += deltaTime;
                 if (this.lastSwitchTime >= this.switchInterval) {
                     this.currentImage = this.currentImage === this.image1 ? this.image2 : this.image1;
                     this.lastSwitchTime = 0;
                 }
 
-                // Movimiento vertical (salto)
                 if (this.jump) {
                     this.y -= this.jumpPower;
                     this.jumpPower -= this.gravity;
                     if (this.y >= window.innerHeight - 300) {
                         this.jump = undefined;
                         this.y = window.innerHeight - 300;
-                        this.jumpPower = 10;
+                        this.jumpPower = 15; // Reiniciar salto
                     }
                 }
+            }
 
-                // Movimiento horizontal
-                if (this.right) {
-                    this.x -= 15;
-                }
-                if (this.left) {
-                    this.x += 15;
-                }
+            checkCollision(cactus) {
+                return (
+                    this.x < cactus.x + cactus.width &&
+                    this.x + this.width > cactus.x &&
+                    this.y < cactus.y + cactus.height &&
+                    this.y + this.height > cactus.y
+                );
+            }
+
+            isAbove(cactus) {
+                return (
+                    this.x + this.width > cactus.x &&
+                    this.x < cactus.x + cactus.width &&
+                    this.y + this.height <= cactus.y
+                );
             }
         }
 
-        // Animación usando requestAnimationFrame
         const enviroment = new Enviroment(0);
         const rex = new Rex(100, window.innerHeight - 300);
+        const cacti = [];
+        let score = 0;
+        let gameOver = false;
         let lastFrameTime = 0;
+        let cactusSpawnInterval = 2000;
+        let lastCactusSpawn = 0;
+
+        function updateScore() {
+            const scoreElement = document.querySelector(".score");
+            scoreElement.textContent = `Score: ${score}`;
+        }
+
+        function spawnCactus() {
+            const cactus = new Cactus(window.innerWidth, window.innerHeight - 300);
+            cacti.push(cactus);
+        }
 
         function gameLoop(timestamp) {
-            const deltaTime = timestamp - lastFrameTime; // Tiempo transcurrido entre cuadros
+            const deltaTime = timestamp - lastFrameTime;
             lastFrameTime = timestamp;
 
             if (!enviroment.imageLoaded || !rex.image1Loaded || !rex.image2Loaded) {
@@ -117,51 +162,61 @@
                 return;
             }
 
-            // Actualizar lógica
+            if (gameOver) {
+                alert(`Game Over! Final Score: ${score}`);
+                return;
+            }
+
+            if (timestamp - lastCactusSpawn > cactusSpawnInterval) {
+                spawnCactus();
+                lastCactusSpawn = timestamp;
+            }
+
             enviroment.x -= 1;
             if (enviroment.x < -window.innerWidth) {
                 enviroment.x = 0;
             }
             rex.update(deltaTime);
+            cacti.forEach((cactus) => cactus.update());
 
-            // Dibujar en el canvas
+            for (let i = cacti.length - 1; i >= 0; i--) {
+                if (cacti[i].isOffScreen()) {
+                    cacti.splice(i, 1);
+                } else if (rex.checkCollision(cacti[i])) {
+                    gameOver = true;
+                } else if (rex.isAbove(cacti[i]) && !cacti[i].scored) {
+                    score += 10; // Incrementar score si salta sobre el cactus
+                    updateScore();
+                    cacti[i].scored = true; // Marcar como "contado"
+                }
+            }
+
             const canvas = document.createElement("canvas");
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             const ctx = canvas.getContext("2d");
             ctx.drawImage(enviroment.image, enviroment.x, 0, canvas.width, canvas.height);
             ctx.drawImage(enviroment.image, enviroment.x + canvas.width, 0, canvas.width, canvas.height);
-            ctx.drawImage(rex.currentImage, rex.x, rex.y, 100, 100);
+            ctx.drawImage(rex.currentImage, rex.x, rex.y, rex.width, rex.height);
+            cacti.forEach((cactus) => {
+                if (cactus.imageLoaded) {
+                    ctx.drawImage(cactus.image, cactus.x, cactus.y, cactus.width, cactus.height);
+                }
+            });
 
             const container = document.querySelector(".container");
             container.innerHTML = "";
             container.appendChild(canvas);
 
-            // Llamar al siguiente cuadro de animación
             requestAnimationFrame(gameLoop);
         }
 
         document.addEventListener("keydown", (e) => {
-            if (e.key == " ") {
-                rex.jump = true;
-            }
-            if (e.key == "a") {
-                rex.right = true;
-            }
-            if (e.key == "d") {
-                rex.left = true;
-            }
-        });
-        document.addEventListener("keyup", (e) => {
-            if (e.key == "a") {
-                rex.right = false;
-            }
-            if (e.key == "d") {
-                rex.left = false;
+            if (e.key === " ") {
+                if (!rex.jump) rex.jump = true;
             }
         });
 
-        // Iniciar el ciclo de animación
         requestAnimationFrame(gameLoop);
     </script>
 </body>
